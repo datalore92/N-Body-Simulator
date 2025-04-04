@@ -1,0 +1,51 @@
+name: Build N-Body Simulator
+
+on:
+  push:
+    tags:
+      - 'v*'  # Run on tag push of pattern v*, like v1.0.0, v20.15.10
+  workflow_dispatch:  # Allow manual trigger of workflow
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-make
+            mingw-w64-x86_64-SDL2
+            
+      - name: Build with MSYS2
+        shell: msys2 {0}
+        run: |
+          mkdir -p build
+          cd build
+          cmake -G "MSYS Makefiles" ..
+          make
+
+      - name: Create Release Zip
+        shell: msys2 {0}
+        run: |
+          mkdir -p release
+          cp build/ParticlesDemo.exe release/particles-demo.exe
+          cp /mingw64/bin/SDL2.dll release/
+          cp -r assets release/
+          cd release
+          7z a ../n-body-simulator-windows.zip *
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: n-body-simulator-windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
