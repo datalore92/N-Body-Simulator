@@ -1,4 +1,6 @@
 #include <SDL2/SDL.h>
+#include <stdio.h>     // Added for fprintf and stderr
+#include <math.h>      // Added for sqrtf
 #include "renderer.h"
 #include "particle.h"
 
