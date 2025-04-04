@@ -27,22 +27,25 @@ jobs:
       - name: Install SDL2
         run: |
           mkdir -p C:/SDL2
-          curl -L https://www.libsdl.org/release/SDL2-devel-2.26.5-mingw.tar.gz -o SDL2.tar.gz
-          tar -xzf SDL2.tar.gz
-          xcopy /E /I /Y SDL2-* C:\SDL2\
+          curl -L https://github.com/libsdl-org/SDL/releases/download/release-2.26.5/SDL2-devel-2.26.5-mingw.zip -o SDL2.zip
+          7z x SDL2.zip -oC:/
+          mkdir -p C:/SDL2/include
+          mkdir -p C:/SDL2/lib
+          Copy-Item -Path C:/SDL2-2.26.5/x86_64-w64-mingw32/include/SDL2/* -Destination C:/SDL2/include/ -Recurse
+          Copy-Item -Path C:/SDL2-2.26.5/x86_64-w64-mingw32/lib/* -Destination C:/SDL2/lib/ -Recurse
 
       - name: Build with MinGW
         run: |
           mkdir build
           cd build
-          cmake -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=C:/SDL2 ..
+          cmake -G "MinGW Makefiles" ..
           mingw32-make
 
       - name: Create Release Zip
         run: |
           mkdir release
           copy build\ParticlesDemo.exe release\particles-demo.exe
-          copy C:\SDL2\x86_64-w64-mingw32\bin\SDL2.dll release\
+          copy C:\SDL2-2.26.5\x86_64-w64-mingw32\bin\SDL2.dll release\
           xcopy /E /I assets release\assets
           cd release
           7z a ..\n-body-simulator-windows.zip *
