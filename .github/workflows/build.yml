@@ -4,10 +4,9 @@ on:
   push:
     tags:
       - 'v*'
-  # Also build on PRs and pushes to main for testing
-  pull_request:
     branches: [ main ]
-  push:
+  # Also build on PRs for testing
+  pull_request:
     branches: [ main ]
 
 jobs:
