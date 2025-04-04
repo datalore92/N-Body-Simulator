@@ -6,6 +6,9 @@ on:
       - 'v*'  # Run on tag push of pattern v*, like v1.0.0, v20.15.10
   workflow_dispatch:  # Allow manual trigger of workflow
 
+permissions:
+  contents: write  # Add explicit permission to create releases
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -13,20 +16,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup MinGW
-        uses: egor-tensin/setup-mingw@v2
+      - name: Setup MinGW using chocolatey
+        uses: crazy-max/ghaction-chocolatey@v2
         with:
-          platform: x64
+          args: install mingw -y
+
+      - name: Add MinGW to PATH
+        run: echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install SDL2
         run: |
           mkdir -p C:/SDL2
-          curl -L https://www.libsdl.org/release/SDL2-devel-2.0.22-mingw.tar.gz -o SDL2.tar.gz
-          tar -xzf SDL2.tar.gz -C C:/SDL2 --strip-components=1
-          echo "SDL2_DIR=C:/SDL2" >> $GITHUB_ENV
+          curl -L https://www.libsdl.org/release/SDL2-devel-2.26.5-mingw.tar.gz -o SDL2.tar.gz
+          tar -xzf SDL2.tar.gz
+          xcopy /E /I /Y SDL2-* C:\SDL2\
 
       - name: Build with MinGW
-        shell: cmd
         run: |
           mkdir build
           cd build
@@ -34,7 +39,6 @@ jobs:
           mingw32-make
 
       - name: Create Release Zip
-        shell: cmd
         run: |
           mkdir release
           copy build\ParticlesDemo.exe release\particles-demo.exe
@@ -48,8 +52,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: n-body-simulator-windows.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
 
   build-linux:
     runs-on: ubuntu-latest
@@ -80,5 +83,4 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: n-body-simulator-linux.tar.gz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
