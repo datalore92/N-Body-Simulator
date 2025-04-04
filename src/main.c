@@ -1,4 +1,3 @@
-#define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 #include <stdbool.h>
 #include <stdio.h>

@@ -22,11 +22,9 @@ add_executable(ParticlesDemo ${SOURCES})
 if(WIN32)
     # For Windows builds in GitHub Actions
     if(DEFINED ENV{GITHUB_ACTIONS})
-        # Include directories - Just C:/SDL2/include without SDL2 since we set it up this way
-        include_directories(C:/SDL2/include)
-        
-        # Link directories
-        link_directories(C:/SDL2/lib)
+        # Update to the correct SDL2 paths
+        include_directories(C:/SDL2-2.26.5/x86_64-w64-mingw32/include)
+        link_directories(C:/SDL2-2.26.5/x86_64-w64-mingw32/lib)
         
         # Link libraries directly without imported targets
         target_link_libraries(ParticlesDemo 
