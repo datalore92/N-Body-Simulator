@@ -26,26 +26,37 @@ jobs:
 
       - name: Install SDL2
         run: |
-          mkdir -p C:/SDL2
+          # Download SDL2 development files
           curl -L https://github.com/libsdl-org/SDL/releases/download/release-2.26.5/SDL2-devel-2.26.5-mingw.zip -o SDL2.zip
-          7z x SDL2.zip -oC:/
-          mkdir -p C:/SDL2/include
-          mkdir -p C:/SDL2/lib
-          Copy-Item -Path C:/SDL2-2.26.5/x86_64-w64-mingw32/include/SDL2/* -Destination C:/SDL2/include/ -Recurse
-          Copy-Item -Path C:/SDL2-2.26.5/x86_64-w64-mingw32/lib/* -Destination C:/SDL2/lib/ -Recurse
+          7z x SDL2.zip
+          
+          # Create folder structure for SDL2
+          mkdir -p include/SDL2
+          mkdir -p lib
+          
+          # Copy header files to include directory
+          Copy-Item -Path SDL2-2.26.5/x86_64-w64-mingw32/include/SDL2/* -Destination include/SDL2/ -Recurse
+          
+          # Copy library files
+          Copy-Item -Path SDL2-2.26.5/x86_64-w64-mingw32/lib/* -Destination lib/ -Recurse
+          
+          # Set SDL directories for CMake
+          echo "SDL2_DIR=$pwd" >> $env:GITHUB_ENV
+          dir include
+          dir include/SDL2
 
       - name: Build with MinGW
         run: |
           mkdir build
           cd build
-          cmake -G "MinGW Makefiles" ..
-          mingw32-make
+          cmake -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=.. -DSDL2_INCLUDE_DIR=../include ..
+          mingw32-make VERBOSE=1
 
       - name: Create Release Zip
         run: |
           mkdir release
           copy build\ParticlesDemo.exe release\particles-demo.exe
-          copy C:\SDL2-2.26.5\x86_64-w64-mingw32\bin\SDL2.dll release\
+          copy SDL2-2.26.5\x86_64-w64-mingw32\bin\SDL2.dll release\
           xcopy /E /I assets release\assets
           cd release
           7z a ..\n-body-simulator-windows.zip *

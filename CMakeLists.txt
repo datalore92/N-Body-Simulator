@@ -22,13 +22,13 @@ add_executable(ParticlesDemo ${SOURCES})
 if(WIN32)
     # For Windows builds in GitHub Actions
     if(DEFINED ENV{GITHUB_ACTIONS})
-        # Include directories
-        include_directories(C:/SDL2/include)
+        # Set include directories directly
+        include_directories(include)
         
-        # Link directories
-        link_directories(C:/SDL2/lib)
+        # Add manual link directories
+        link_directories(lib)
         
-        # Link libraries directly without imported targets
+        # Link libraries directly
         target_link_libraries(ParticlesDemo 
             mingw32
             SDL2main
@@ -40,19 +40,6 @@ if(WIN32)
         find_package(SDL2 REQUIRED)
         include_directories(${SDL2_INCLUDE_DIRS})
         target_link_libraries(ParticlesDemo ${SDL2_LIBRARIES} m)
-    endif()
-    
-    # Only add this command for local builds, not for GitHub Actions
-    if(NOT DEFINED ENV{GITHUB_ACTIONS})
-        # Copy SDL2.dll to output directory for easy running (if we can find it)
-        find_file(SDL2_DLL SDL2.dll)
-        if(SDL2_DLL)
-            add_custom_command(TARGET ParticlesDemo POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${SDL2_DLL}
-                $<TARGET_FILE_DIR:ParticlesDemo>
-            )
-        endif()
     endif()
 else()
     # For Linux/macOS builds
