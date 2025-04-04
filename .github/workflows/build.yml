@@ -1,97 +1,94 @@
-name: Build N-Body Simulator
+name: Build Releases
 
 on:
   push:
     tags:
-      - 'v*'  # Run on tag push of pattern v*, like v1.0.0, v20.15.10
-  workflow_dispatch:  # Allow manual trigger of workflow
-
-permissions:
-  contents: write  # Add explicit permission to create releases
+      - 'v*'
+  # Also build on PRs and pushes to main for testing
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
 
 jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Setup MinGW using chocolatey
-        uses: crazy-max/ghaction-chocolatey@v2
-        with:
-          args: install mingw -y
-
-      - name: Add MinGW to PATH
-        run: echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Install SDL2
-        run: |
-          mkdir -p C:/SDL2
-          curl -L https://github.com/libsdl-org/SDL/releases/download/release-2.26.5/SDL2-devel-2.26.5-mingw.zip -o SDL2.zip
-          7z x SDL2.zip -oC:/
-          dir C:/SDL2-2.26.5/x86_64-w64-mingw32
-          dir C:/SDL2-2.26.5/x86_64-w64-mingw32/include
-          # Create SDL2 structure
-          mkdir -p C:/SDL2/include/SDL2
-          mkdir -p C:/SDL2/lib
-          
-          # Copy header files to maintain SDL2/SDL.h structure
-          Copy-Item -Path C:/SDL2-2.26.5/x86_64-w64-mingw32/include/*.h -Destination C:/SDL2/include/SDL2/ -Recurse
-          Copy-Item -Path C:/SDL2-2.26.5/x86_64-w64-mingw32/lib/* -Destination C:/SDL2/lib/ -Recurse
-          
-          # Check the final structure
-          dir C:/SDL2/include/SDL2
-
-      - name: Build with MinGW
-        run: |
-          mkdir build
-          cd build
-          cmake -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=C:/SDL2 ..
-          mingw32-make VERBOSE=1
-
-      - name: Create Release Zip
-        run: |
-          mkdir release
-          copy build\ParticlesDemo.exe release\particles-demo.exe
-          copy C:\SDL2-2.26.5\x86_64-w64-mingw32\bin\SDL2.dll release\
-          xcopy /E /I assets release\assets
-          cd release
-          7z a ..\n-body-simulator-windows.zip *
-
-      - name: Upload Windows Build
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: n-body-simulator-windows.zip
-          token: ${{ github.token }}
+    - uses: actions/checkout@v4
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: >-
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-SDL2
+          mingw-w64-x86_64-cmake
+          mingw-w64-x86_64-make
+    - name: Build
+      shell: msys2 {0}
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. -G "MinGW Makefiles" -DCMAKE_MAKE_PROGRAM=mingw32-make
+        mingw32-make
+    - name: Package
+      shell: msys2 {0}
+      run: |
+        mkdir -p releases/windows
+        cp build/ParticlesDemo.exe releases/windows/
+        
+        # Copy required DLLs
+        cp /mingw64/bin/SDL2.dll releases/windows/
+        cp /mingw64/bin/libgcc_s_seh-1.dll releases/windows/
+        cp /mingw64/bin/libwinpthread-1.dll releases/windows/
+        
+        # Create zip
+        cd releases/windows
+        powershell -Command "Compress-Archive -Path * -DestinationPath ../../N-Body-Simulator-windows.zip -Force"
+    - uses: actions/upload-artifact@v4
+      with:
+        name: windows-build
+        path: N-Body-Simulator-windows.zip
 
   build-linux:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc make cmake libsdl2-dev
+    - name: Build
+      run: |
+        mkdir build
+        cd build
+        cmake .. 
+        cmake --build . 
+    - name: Package
+      run: |
+        mkdir -p releases/linux
+        cp build/ParticlesDemo releases/linux/
+        chmod +x releases/linux/ParticlesDemo
+        cd releases/linux
+        tar czf ../../N-Body-Simulator-linux.tar.gz *
+    - uses: actions/upload-artifact@v4
+      with:
+        name: linux-build
+        path: N-Body-Simulator-linux.tar.gz
 
-      - name: Install SDL2
-        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
-
-      - name: Build with GCC
-        run: |
-          mkdir -p build
-          cd build
-          cmake ..
-          make
-
-      - name: Create Release Tar
-        run: |
-          mkdir -p release
-          cp build/ParticlesDemo release/particles-demo
-          cp -r assets release/
-          cd release
-          tar -czvf ../n-body-simulator-linux.tar.gz *
-
-      - name: Upload Linux Build
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: n-body-simulator-linux.tar.gz
-          token: ${{ github.token }}
+  create-release:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/download-artifact@v4
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          windows-build/N-Body-Simulator-windows.zip
+          linux-build/N-Body-Simulator-linux.tar.gz
