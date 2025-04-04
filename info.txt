@@ -1,0 +1,2 @@
+N-Body Simulator, with particles having a certain mass and radius depending on the mass that merge if they collide
+(Bonus: Include a GUI where you can place particles)
