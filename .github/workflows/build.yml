@@ -26,37 +26,34 @@ jobs:
 
       - name: Install SDL2
         run: |
-          # Download SDL2 development files
+          mkdir -p C:/SDL2
           curl -L https://github.com/libsdl-org/SDL/releases/download/release-2.26.5/SDL2-devel-2.26.5-mingw.zip -o SDL2.zip
-          7z x SDL2.zip
+          7z x SDL2.zip -oC:/
+          dir C:/SDL2-2.26.5/x86_64-w64-mingw32
+          dir C:/SDL2-2.26.5/x86_64-w64-mingw32/include
+          # Create SDL2 structure
+          mkdir -p C:/SDL2/include/SDL2
+          mkdir -p C:/SDL2/lib
           
-          # Create folder structure for SDL2
-          mkdir -p include/SDL2
-          mkdir -p lib
+          # Copy header files to maintain SDL2/SDL.h structure
+          Copy-Item -Path C:/SDL2-2.26.5/x86_64-w64-mingw32/include/*.h -Destination C:/SDL2/include/SDL2/ -Recurse
+          Copy-Item -Path C:/SDL2-2.26.5/x86_64-w64-mingw32/lib/* -Destination C:/SDL2/lib/ -Recurse
           
-          # Copy header files to include directory
-          Copy-Item -Path SDL2-2.26.5/x86_64-w64-mingw32/include/SDL2/* -Destination include/SDL2/ -Recurse
-          
-          # Copy library files
-          Copy-Item -Path SDL2-2.26.5/x86_64-w64-mingw32/lib/* -Destination lib/ -Recurse
-          
-          # Set SDL directories for CMake
-          echo "SDL2_DIR=$pwd" >> $env:GITHUB_ENV
-          dir include
-          dir include/SDL2
+          # Check the final structure
+          dir C:/SDL2/include/SDL2
 
       - name: Build with MinGW
         run: |
           mkdir build
           cd build
-          cmake -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=.. -DSDL2_INCLUDE_DIR=../include ..
+          cmake -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=C:/SDL2 ..
           mingw32-make VERBOSE=1
 
       - name: Create Release Zip
         run: |
           mkdir release
           copy build\ParticlesDemo.exe release\particles-demo.exe
-          copy SDL2-2.26.5\x86_64-w64-mingw32\bin\SDL2.dll release\
+          copy C:\SDL2-2.26.5\x86_64-w64-mingw32\bin\SDL2.dll release\
           xcopy /E /I assets release\assets
           cd release
           7z a ..\n-body-simulator-windows.zip *
