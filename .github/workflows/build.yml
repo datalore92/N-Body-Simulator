@@ -13,39 +13,72 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup MSYS2
-        uses: msys2/setup-msys2@v2
+      - name: Setup MinGW
+        uses: egor-tensin/setup-mingw@v2
         with:
-          msystem: MINGW64
-          update: true
-          install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-make
-            mingw-w64-x86_64-SDL2
-            
-      - name: Build with MSYS2
-        shell: msys2 {0}
+          platform: x64
+
+      - name: Install SDL2
         run: |
-          mkdir -p build
+          mkdir -p C:/SDL2
+          curl -L https://www.libsdl.org/release/SDL2-devel-2.0.22-mingw.tar.gz -o SDL2.tar.gz
+          tar -xzf SDL2.tar.gz -C C:/SDL2 --strip-components=1
+          echo "SDL2_DIR=C:/SDL2" >> $GITHUB_ENV
+
+      - name: Build with MinGW
+        shell: cmd
+        run: |
+          mkdir build
           cd build
-          cmake -G "MSYS Makefiles" ..
-          make
+          cmake -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=C:/SDL2 ..
+          mingw32-make
 
       - name: Create Release Zip
-        shell: msys2 {0}
+        shell: cmd
         run: |
-          mkdir -p release
-          cp build/ParticlesDemo.exe release/particles-demo.exe
-          cp /mingw64/bin/SDL2.dll release/
-          cp -r assets release/
+          mkdir release
+          copy build\ParticlesDemo.exe release\particles-demo.exe
+          copy C:\SDL2\x86_64-w64-mingw32\bin\SDL2.dll release\
+          xcopy /E /I assets release\assets
           cd release
-          7z a ../n-body-simulator-windows.zip *
+          7z a ..\n-body-simulator-windows.zip *
 
-      - name: Upload to Release
+      - name: Upload Windows Build
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: n-body-simulator-windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install SDL2
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
+
+      - name: Build with GCC
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+          make
+
+      - name: Create Release Tar
+        run: |
+          mkdir -p release
+          cp build/ParticlesDemo release/particles-demo
+          cp -r assets release/
+          cd release
+          tar -czvf ../n-body-simulator-linux.tar.gz *
+
+      - name: Upload Linux Build
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: n-body-simulator-linux.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
